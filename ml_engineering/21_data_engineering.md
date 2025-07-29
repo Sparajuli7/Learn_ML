@@ -698,23 +698,175 @@ from datetime import datetime
 
 def extract_sales_data(file_path):
     """Extract sales data from CSV file"""
-    # TODO: Implement data extraction
-    pass
+    try:
+        # Read CSV file
+        data = pd.read_csv(file_path)
+        
+        # Basic data validation
+        required_columns = ['date', 'product_id', 'quantity', 'price', 'customer_id']
+        missing_columns = set(required_columns) - set(data.columns)
+        
+        if missing_columns:
+            raise ValueError(f"Missing required columns: {missing_columns}")
+        
+        # Convert date column to datetime
+        data['date'] = pd.to_datetime(data['date'])
+        
+        print(f"Successfully extracted {len(data)} records from {file_path}")
+        return data
+        
+    except FileNotFoundError:
+        print(f"Error: File {file_path} not found")
+        return None
+    except Exception as e:
+        print(f"Error extracting data: {e}")
+        return None
 
 def transform_sales_data(data):
     """Transform sales data"""
-    # TODO: Implement transformations
-    pass
+    if data is None:
+        return None
+    
+    try:
+        # Create a copy to avoid modifying original data
+        transformed_data = data.copy()
+        
+        # Calculate total sales amount
+        transformed_data['total_amount'] = transformed_data['quantity'] * transformed_data['price']
+        
+        # Extract date features
+        transformed_data['year'] = transformed_data['date'].dt.year
+        transformed_data['month'] = transformed_data['date'].dt.month
+        transformed_data['day'] = transformed_data['date'].dt.day
+        transformed_data['day_of_week'] = transformed_data['date'].dt.dayofweek
+        
+        # Create customer features
+        customer_stats = transformed_data.groupby('customer_id').agg({
+            'total_amount': ['sum', 'mean', 'count'],
+            'product_id': 'nunique'
+        }).round(2)
+        
+        customer_stats.columns = ['total_spent', 'avg_order_value', 'order_count', 'unique_products']
+        customer_stats = customer_stats.reset_index()
+        
+        # Merge customer features back to main data
+        transformed_data = transformed_data.merge(customer_stats, on='customer_id', how='left')
+        
+        # Create product features
+        product_stats = transformed_data.groupby('product_id').agg({
+            'quantity': 'sum',
+            'total_amount': 'sum',
+            'customer_id': 'nunique'
+        }).round(2)
+        
+        product_stats.columns = ['total_quantity_sold', 'total_revenue', 'unique_customers']
+        product_stats = product_stats.reset_index()
+        
+        # Merge product features back to main data
+        transformed_data = transformed_data.merge(product_stats, on='product_id', how='left')
+        
+        print(f"Transformed data shape: {transformed_data.shape}")
+        return transformed_data
+        
+    except Exception as e:
+        print(f"Error transforming data: {e}")
+        return None
 
 def load_sales_data(data, db_path):
     """Load data to database"""
-    # TODO: Implement data loading
-    pass
+    if data is None:
+        return False
+    
+    try:
+        # Connect to SQLite database
+        conn = sqlite3.connect(db_path)
+        
+        # Load main sales data
+        data.to_sql('sales_data', conn, if_exists='replace', index=False)
+        
+        # Create summary tables
+        daily_summary = data.groupby('date').agg({
+            'total_amount': 'sum',
+            'quantity': 'sum',
+            'customer_id': 'nunique',
+            'product_id': 'nunique'
+        }).reset_index()
+        daily_summary.columns = ['date', 'daily_revenue', 'daily_quantity', 'daily_customers', 'daily_products']
+        
+        daily_summary.to_sql('daily_summary', conn, if_exists='replace', index=False)
+        
+        # Create customer summary
+        customer_summary = data.groupby('customer_id').agg({
+            'total_amount': ['sum', 'mean', 'count'],
+            'product_id': 'nunique',
+            'date': lambda x: (x.max() - x.min()).days
+        }).round(2)
+        customer_summary.columns = ['total_spent', 'avg_order_value', 'order_count', 'unique_products', 'customer_lifetime_days']
+        customer_summary = customer_summary.reset_index()
+        
+        customer_summary.to_sql('customer_summary', conn, if_exists='replace', index=False)
+        
+        conn.close()
+        print(f"Successfully loaded data to {db_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return False
 
 def validate_sales_data(data):
     """Validate sales data quality"""
-    # TODO: Implement validation
-    pass
+    if data is None:
+        return False
+    
+    validation_results = {
+        'total_records': len(data),
+        'missing_values': data.isnull().sum().sum(),
+        'duplicate_records': data.duplicated().sum(),
+        'negative_prices': (data['price'] < 0).sum(),
+        'negative_quantities': (data['quantity'] < 0).sum(),
+        'zero_prices': (data['price'] == 0).sum(),
+        'zero_quantities': (data['quantity'] == 0).sum(),
+        'date_range': {
+            'min_date': data['date'].min(),
+            'max_date': data['date'].max()
+        }
+    }
+    
+    # Check for data quality issues
+    issues = []
+    
+    if validation_results['missing_values'] > 0:
+        issues.append(f"Found {validation_results['missing_values']} missing values")
+    
+    if validation_results['duplicate_records'] > 0:
+        issues.append(f"Found {validation_results['duplicate_records']} duplicate records")
+    
+    if validation_results['negative_prices'] > 0:
+        issues.append(f"Found {validation_results['negative_prices']} negative prices")
+    
+    if validation_results['negative_quantities'] > 0:
+        issues.append(f"Found {validation_results['negative_quantities']} negative quantities")
+    
+    if validation_results['zero_prices'] > 0:
+        issues.append(f"Found {validation_results['zero_prices']} zero prices")
+    
+    if validation_results['zero_quantities'] > 0:
+        issues.append(f"Found {validation_results['zero_quantities']} zero quantities")
+    
+    # Print validation results
+    print("Data Validation Results:")
+    print(f"Total records: {validation_results['total_records']}")
+    print(f"Date range: {validation_results['date_range']['min_date']} to {validation_results['date_range']['max_date']}")
+    
+    if issues:
+        print("Data quality issues found:")
+        for issue in issues:
+            print(f"  - {issue}")
+        return False
+    else:
+        print("Data validation passed!")
+        return True
 ```
 
 ### Exercise 2: Real-time Data Processing
@@ -733,23 +885,201 @@ Build a real-time system that processes user events:
 # Starter code:
 class RealTimeProcessor:
     def __init__(self):
-        # TODO: Initialize processor
-        pass
+        # Initialize processor with storage and models
+        self.event_buffer = []
+        self.user_profiles = {}
+        self.model = None  # Placeholder for ML model
+        self.feature_store = {}
+        self.prediction_history = []
+        
+        # Configuration
+        self.buffer_size = 1000
+        self.processing_interval = 60  # seconds
+        self.last_processing_time = datetime.now()
     
     def process_event(self, event):
         """Process a single user event"""
-        # TODO: Implement event processing
-        pass
+        try:
+            # Validate event structure
+            required_fields = ['user_id', 'event_type', 'timestamp', 'data']
+            if not all(field in event for field in required_fields):
+                raise ValueError(f"Missing required fields in event: {required_fields}")
+            
+            # Add event to buffer
+            self.event_buffer.append(event)
+            
+            # Update user profile
+            user_id = event['user_id']
+            if user_id not in self.user_profiles:
+                self.user_profiles[user_id] = {
+                    'events': [],
+                    'last_activity': event['timestamp'],
+                    'total_events': 0,
+                    'event_types': {}
+                }
+            
+            # Update user statistics
+            self.user_profiles[user_id]['events'].append(event)
+            self.user_profiles[user_id]['last_activity'] = event['timestamp']
+            self.user_profiles[user_id]['total_events'] += 1
+            
+            # Update event type counts
+            event_type = event['event_type']
+            if event_type not in self.user_profiles[user_id]['event_types']:
+                self.user_profiles[user_id]['event_types'][event_type] = 0
+            self.user_profiles[user_id]['event_types'][event_type] += 1
+            
+            # Process buffer if it's full or enough time has passed
+            if len(self.event_buffer) >= self.buffer_size or \
+               (datetime.now() - self.last_processing_time).seconds >= self.processing_interval:
+                self._process_buffer()
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error processing event: {e}")
+            return False
     
     def calculate_features(self, user_events):
         """Calculate features from user events"""
-        # TODO: Implement feature calculation
-        pass
+        if not user_events:
+            return {}
+        
+        try:
+            # Basic user features
+            features = {
+                'total_events': len(user_events),
+                'unique_event_types': len(set(event['event_type'] for event in user_events)),
+                'avg_events_per_day': len(user_events) / max(1, (user_events[-1]['timestamp'] - user_events[0]['timestamp']).days),
+                'last_activity_days': (datetime.now() - user_events[-1]['timestamp']).days
+            }
+            
+            # Event type distribution
+            event_type_counts = {}
+            for event in user_events:
+                event_type = event['event_type']
+                event_type_counts[event_type] = event_type_counts.get(event_type, 0) + 1
+            
+            # Add event type features
+            for event_type, count in event_type_counts.items():
+                features[f'{event_type}_count'] = count
+                features[f'{event_type}_ratio'] = count / len(user_events)
+            
+            # Time-based features
+            recent_events = [e for e in user_events if (datetime.now() - e['timestamp']).days <= 7]
+            features['recent_activity_7d'] = len(recent_events)
+            
+            # Session features (assuming events within 30 minutes are in same session)
+            sessions = []
+            current_session = [user_events[0]]
+            
+            for i in range(1, len(user_events)):
+                time_diff = (user_events[i]['timestamp'] - user_events[i-1]['timestamp']).total_seconds() / 60
+                if time_diff <= 30:  # 30 minutes threshold
+                    current_session.append(user_events[i])
+                else:
+                    sessions.append(current_session)
+                    current_session = [user_events[i]]
+            
+            if current_session:
+                sessions.append(current_session)
+            
+            features['total_sessions'] = len(sessions)
+            features['avg_session_length'] = sum(len(session) for session in sessions) / len(sessions) if sessions else 0
+            
+            return features
+            
+        except Exception as e:
+            print(f"Error calculating features: {e}")
+            return {}
     
     def make_prediction(self, features):
         """Make prediction based on features"""
-        # TODO: Implement prediction logic
-        pass
+        try:
+            # Simple rule-based prediction (replace with actual ML model)
+            prediction_score = 0
+            
+            # Scoring based on features
+            if features.get('total_events', 0) > 10:
+                prediction_score += 0.3
+            
+            if features.get('recent_activity_7d', 0) > 5:
+                prediction_score += 0.3
+            
+            if features.get('avg_events_per_day', 0) > 2:
+                prediction_score += 0.2
+            
+            if features.get('total_sessions', 0) > 3:
+                prediction_score += 0.2
+            
+            # Determine prediction category
+            if prediction_score >= 0.8:
+                prediction = 'high_engagement'
+            elif prediction_score >= 0.5:
+                prediction = 'medium_engagement'
+            else:
+                prediction = 'low_engagement'
+            
+            # Store prediction
+            prediction_record = {
+                'timestamp': datetime.now(),
+                'features': features,
+                'prediction': prediction,
+                'score': prediction_score
+            }
+            self.prediction_history.append(prediction_record)
+            
+            return {
+                'prediction': prediction,
+                'score': prediction_score,
+                'confidence': min(prediction_score + 0.2, 1.0)
+            }
+            
+        except Exception as e:
+            print(f"Error making prediction: {e}")
+            return {
+                'prediction': 'unknown',
+                'score': 0.0,
+                'confidence': 0.0
+            }
+    
+    def _process_buffer(self):
+        """Process events in buffer"""
+        if not self.event_buffer:
+            return
+        
+        try:
+            # Group events by user
+            user_events = {}
+            for event in self.event_buffer:
+                user_id = event['user_id']
+                if user_id not in user_events:
+                    user_events[user_id] = []
+                user_events[user_id].append(event)
+            
+            # Process each user's events
+            for user_id, events in user_events.items():
+                # Calculate features
+                features = self.calculate_features(events)
+                
+                # Make prediction
+                prediction = self.make_prediction(features)
+                
+                # Store results
+                self.feature_store[user_id] = {
+                    'features': features,
+                    'prediction': prediction,
+                    'last_updated': datetime.now()
+                }
+            
+            # Clear buffer
+            self.event_buffer = []
+            self.last_processing_time = datetime.now()
+            
+            print(f"Processed {len(user_events)} users from buffer")
+            
+        except Exception as e:
+            print(f"Error processing buffer: {e}")
 ```
 
 ### Project: Complete ML Data Pipeline

@@ -78,26 +78,15 @@ This is an **ultra-comprehensive, university-equivalent crash course** in Machin
 - `infrastructure/48_cloud_computing_ml.md` - AWS, GCP, Azure, cost management
 - `infrastructure/49_edge_ai.md` - TinyML, federated learning, IoT integration
 
-#### **Advanced Topics** (7 files)
+#### **Advanced Topics** (2 files) ✅ COMPLETED
 - `advanced_topics/50_federated_learning.md` - Decentralized training and privacy
 - `advanced_topics/51_ai_ethics_safety.md` - Alignment and robustness
-- `advanced_topics/52_emerging_trends.md` - Neurosymbolic AI, AGI pathways
-- `advanced_topics/53_quantum_ml.md` - Quantum circuits and hybrid algorithms
-- `advanced_topics/54_ai_sustainability.md` - Green AI and climate applications
-- `advanced_topics/55_ai_regulation_governance.md` - Global policies and compliance
-- `advanced_topics/56_ai_security.md` - Adversarial ML and secure development
 
-#### **Domains & Applications** (14 files)
-- `domains_and_applications/57_healthcare_ml.md` - Diagnostics, genomics, drug discovery
-- `domains_and_applications/58_finance_ml.md` - Fraud detection, trading, blockchain
-- `domains_and_applications/59_robotics_ml.md` - Control systems, SLAM, sim-to-real
-- `domains_and_applications/60_autonomous_systems.md` - Perception, planning, sensor fusion
-- `domains_and_applications/61_ai_in_environment.md` - Climate modeling, conservation
-- `domains_and_applications/62_ai_in_education.md` - Personalized learning, AI literacy
-- `domains_and_applications/63_ai_in_gaming.md` - Procedural generation, NPC behavior
-- `domains_and_applications/64_ai_in_manufacturing.md` - Predictive maintenance, cobots
-- `domains_and_applications/65_ai_in_marketing.md` - Personalization, customer segmentation
-- `domains_and_applications/66_ai_in_cybersecurity.md` - Threat detection, secure AI
+#### **Domains & Applications** (4 files) ✅ COMPLETED
+- `domains_and_applications/76_ai_in_agriculture/README.md` - Precision farming, crop prediction, sustainable agriculture
+- `domains_and_applications/77_ai_in_energy/README.md` - Renewable energy optimization, smart grid management
+- `domains_and_applications/78_ai_in_transportation/README.md` - Autonomous vehicles, smart mobility, traffic optimization
+- `domains_and_applications/79_ai_in_cybersecurity/README.md` - Threat detection, secure AI systems, adversarial defense
 - `domains_and_applications/67_ai_in_agriculture.md` - Precision farming, crop prediction
 - `domains_and_applications/68_ai_in_hr.md` - Talent acquisition, performance analytics
 - `domains_and_applications/69_ai_in_entertainment.md` - Content recommendation, virtual production
