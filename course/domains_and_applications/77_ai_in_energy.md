@@ -1,5 +1,60 @@
 # AI in Energy: Smart Grids, Renewable Optimization, and Energy Intelligence
 
+## Course Information
+
+**Course Code**: ENR-AI-477  
+**Level**: Advanced  
+**Credits**: 4  
+**Prerequisites**: 
+- Introduction to Machine Learning
+- Power Systems Engineering
+- Python Programming
+- Energy Systems Fundamentals
+
+## Course Overview
+
+This advanced course explores the intersection of artificial intelligence and energy systems, providing comprehensive coverage of smart grids, renewable energy optimization, and intelligent energy management. The course combines rigorous mathematical foundations with practical implementations, preparing students for both academic research and industry applications in the energy sector.
+
+## Learning Objectives
+
+Upon completion of this course, students will be able to:
+
+1. **Theoretical Understanding**
+   - Master power systems optimization algorithms
+   - Understand renewable energy forecasting models
+   - Apply machine learning to grid management
+   - Develop energy market models
+
+2. **Technical Competence**
+   - Implement smart grid control systems
+   - Design renewable energy forecasting solutions
+   - Deploy grid stability monitoring systems
+   - Create energy trading platforms
+
+3. **Industry Application**
+   - Evaluate grid performance metrics
+   - Design regulatory-compliant systems
+   - Optimize energy resource allocation
+   - Monitor grid reliability indicators
+
+4. **Research and Innovation**
+   - Conduct energy systems research
+   - Analyze grid performance data
+   - Develop novel energy solutions
+   - Contribute to grid modernization
+
+## Module Structure
+
+Each section includes:
+- Theoretical foundations and proofs
+- Implementation examples
+- Case studies
+- Performance metrics
+- Interactive exercises
+- Assessment questions
+- Laboratory experiments
+- Portfolio projects
+
 ## Table of Contents
 1. [Introduction and Energy Landscape](#introduction-and-energy-landscape)
 2. [Theoretical Foundations](#theoretical-foundations)
@@ -17,6 +72,197 @@
 14. [Assessment and Evaluation](#assessment-and-evaluation)
 15. [Research Frontiers and Future Directions](#research-frontiers-and-future-directions)
 16. [Resources and Further Learning](#resources-and-further-learning)
+
+## Theoretical Foundations <a name="theoretical-foundations"></a>
+
+### 1.1 Power Systems Optimization
+
+#### 1.1.1 Optimal Power Flow
+
+The fundamental optimization problem in power systems:
+
+$\min_{P_G, Q_G, V} \sum_{i=1}^{N_G} C_i(P_{G_i})$
+
+subject to:
+- Power balance constraints:
+  $P_i = \sum_{j=1}^N |V_i||V_j|(G_{ij}\cos\theta_{ij} + B_{ij}\sin\theta_{ij})$
+  $Q_i = \sum_{j=1}^N |V_i||V_j|(G_{ij}\sin\theta_{ij} - B_{ij}\cos\theta_{ij})$
+
+- Generator limits:
+  $P_{G_i}^{min} \leq P_{G_i} \leq P_{G_i}^{max}$
+  $Q_{G_i}^{min} \leq Q_{G_i} \leq Q_{G_i}^{max}$
+
+- Voltage limits:
+  $V_i^{min} \leq |V_i| \leq V_i^{max}$
+
+where:
+- $P_{G_i}$: Active power generation at bus i
+- $Q_{G_i}$: Reactive power generation at bus i
+- $V_i$: Voltage magnitude at bus i
+- $G_{ij}, B_{ij}$: Real and imaginary parts of the bus admittance matrix
+- $\theta_{ij}$: Voltage angle difference between buses i and j
+
+```python
+import numpy as np
+from scipy.optimize import minimize
+
+class OptimalPowerFlow:
+    def __init__(self, network_data):
+        self.buses = network_data['buses']
+        self.generators = network_data['generators']
+        self.lines = network_data['lines']
+        self.Y_bus = self._build_admittance_matrix()
+        
+    def objective_function(self, x):
+        """
+        Cost minimization objective
+        
+        Args:
+            x: Vector of optimization variables [P_G, Q_G, V]
+            
+        Returns:
+            float: Total generation cost
+        """
+        P_G = x[:self.n_generators]
+        return sum(g['cost_a'] * p**2 + g['cost_b'] * p + g['cost_c'] 
+                  for g, p in zip(self.generators, P_G))
+    
+    def power_flow_constraints(self, x):
+        """
+        Power flow equality constraints
+        
+        Returns:
+            array: Power mismatch at each bus
+        """
+        P_G = x[:self.n_generators]
+        Q_G = x[self.n_generators:2*self.n_generators]
+        V = x[2*self.n_generators:]
+        
+        # Calculate power injections
+        S = self._calculate_power_injection(V)
+        
+        return np.concatenate([
+            S.real - (P_G - self.P_load),
+            S.imag - (Q_G - self.Q_load)
+        ])
+    
+    def solve_opf(self):
+        """
+        Solve the optimal power flow problem
+        
+        Returns:
+            dict: Optimal solution
+        """
+        # Initial point
+        x0 = self._get_initial_point()
+        
+        # Define bounds
+        bounds = self._get_variable_bounds()
+        
+        # Solve
+        result = minimize(
+            self.objective_function,
+            x0,
+            constraints=[
+                {'type': 'eq', 'fun': self.power_flow_constraints}
+            ],
+            bounds=bounds,
+            method='SLSQP'
+        )
+        
+        return self._parse_solution(result.x)
+```
+
+#### 1.1.2 Renewable Energy Forecasting
+
+The solar power output prediction model:
+
+$P_{solar} = \eta A I_{solar} (1 - \beta(T - T_{ref}))$
+
+where:
+- $\eta$: Panel efficiency
+- $A$: Panel area
+- $I_{solar}$: Solar irradiance
+- $\beta$: Temperature coefficient
+- $T$: Panel temperature
+- $T_{ref}$: Reference temperature
+
+```python
+class SolarPowerPredictor:
+    def __init__(self, panel_params):
+        self.efficiency = panel_params['efficiency']
+        self.area = panel_params['area']
+        self.temp_coeff = panel_params['temp_coefficient']
+        self.ref_temp = panel_params['ref_temperature']
+        
+    def predict_power(self, irradiance, temperature):
+        """
+        Predict solar panel power output
+        
+        Args:
+            irradiance (float): Solar irradiance (W/m²)
+            temperature (float): Panel temperature (°C)
+            
+        Returns:
+            float: Predicted power output (W)
+        """
+        temp_factor = 1 - self.temp_coeff * (temperature - self.ref_temp)
+        return self.efficiency * self.area * irradiance * temp_factor
+```
+
+### 1.2 Grid Stability Analysis
+
+#### 1.2.1 Frequency Stability
+
+The swing equation for generator frequency dynamics:
+
+$\frac{2H}{\omega_s}\frac{d^2\delta}{dt^2} = P_m - P_e - D\frac{d\delta}{dt}$
+
+where:
+- $H$: Inertia constant
+- $\omega_s$: Synchronous frequency
+- $\delta$: Rotor angle
+- $P_m$: Mechanical power input
+- $P_e$: Electrical power output
+- $D$: Damping coefficient
+
+```python
+class FrequencyStabilityAnalyzer:
+    def __init__(self, system_params):
+        self.H = system_params['inertia']
+        self.w_s = system_params['sync_freq']
+        self.D = system_params['damping']
+        
+    def simulate_frequency_response(self, P_m, P_e, t_span, delta_0=0, omega_0=0):
+        """
+        Simulate frequency response to power imbalance
+        
+        Args:
+            P_m (float): Mechanical power
+            P_e (float): Electrical power
+            t_span (array): Time points for simulation
+            delta_0 (float): Initial rotor angle
+            omega_0 (float): Initial frequency deviation
+            
+        Returns:
+            tuple: Time points and frequency response
+        """
+        def swing_equation(t, y):
+            delta, omega = y
+            ddelta = omega
+            domega = (self.w_s/(2*self.H)) * (P_m - P_e - self.D*omega)
+            return [ddelta, domega]
+        
+        from scipy.integrate import solve_ivp
+        sol = solve_ivp(
+            swing_equation,
+            [t_span[0], t_span[-1]],
+            [delta_0, omega_0],
+            t_eval=t_span
+        )
+        
+        return sol.t, sol.y[1]  # Return time and frequency deviation
+```
 
 ## Introduction and Energy Landscape
 
@@ -2251,6 +2497,81 @@ Enel Group implemented AI-driven renewable energy forecasting across 5,000+ wind
 - Real-time systems
 - Control theory
 - Python, MATLAB
+
+## Assessment and Certification
+
+### Module Quizzes
+
+1. **Theoretical Foundations**
+   - Derive the optimal power flow equations
+   - Analyze grid stability using swing equations
+   - Solve renewable energy forecasting problems
+
+2. **Smart Grid Applications**
+   - Implement grid control algorithms
+   - Design demand response systems
+   - Evaluate grid performance metrics
+
+3. **Renewable Integration**
+   - Develop solar/wind forecasting models
+   - Create grid integration strategies
+   - Optimize storage systems
+
+4. **Energy Markets**
+   - Design energy trading algorithms
+   - Implement market clearing mechanisms
+   - Analyze price formation models
+
+### Projects and Assignments
+
+1. **Smart Grid Management System**
+   - Build a complete grid control system
+   - Implement real-time monitoring
+   - Deploy on simulation platform
+   - Documentation requirements provided
+
+2. **Renewable Forecasting Platform**
+   - Develop multi-source prediction models
+   - Create visualization dashboards
+   - Implement automated reporting
+   - Handle real-world data challenges
+
+3. **Energy Trading System**
+   - Design market mechanisms
+   - Implement clearing algorithms
+   - Create settlement systems
+   - Test in simulated environment
+
+### Certification Preparation
+
+1. **Power Systems Professional**
+   - Core competencies covered
+   - Industry standards alignment
+   - Practical experience requirements
+   - Certification pathways
+
+2. **Smart Grid Specialist**
+   - Technical requirements
+   - Field experience documentation
+   - Project portfolio requirements
+   - Assessment criteria
+
+## References
+
+1. Kundur, P. (2021). Power System Stability and Control. McGraw-Hill.
+2. Wood, A. J., & Wollenberg, B. F. (2022). Power Generation, Operation, and Control. Wiley.
+3. IEEE Power & Energy Society. (2024). Smart Grid Standards.
+4. Energy Systems Journal. (2024). Advances in Energy AI.
+5. NREL. (2024). Renewable Energy Integration Guidelines.
+
+## Additional Resources
+
+1. Online Supplementary Materials
+2. Interactive Jupyter Notebooks
+3. Grid Simulation Tools
+4. Market Simulation Platforms
+5. Real-world Datasets
+6. Assessment Solutions
 
 **Salary Range:** $100,000 - $160,000
 

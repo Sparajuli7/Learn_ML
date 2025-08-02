@@ -1139,4 +1139,1228 @@ export const IoTWeb3Dashboard: React.FC = () => {
 - [MetaMask for Web3](https://metamask.io/)
 - [Grafana for Monitoring](https://grafana.com/)
 
-This project demonstrates cutting-edge integration of AI/ML with emerging technologies, showcasing the future of decentralized, intelligent systems. 
+This project demonstrates cutting-edge integration of AI/ML with emerging technologies, showcasing the future of decentralized, intelligent systems.
+
+## 🏗️ Advanced Implementation Details
+
+### 1. Federated Learning System
+
+```python
+# federated_learning.py
+import asyncio
+import logging
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from datetime import datetime
+import numpy as np
+import torch
+import torch.nn as nn
+from cryptography.fernet import Fernet
+import hashlib
+
+@dataclass
+class FederatedNode:
+    """Federated learning node"""
+    node_id: str
+    device_type: str  # 'iot', 'edge', 'cloud'
+    model_version: str
+    data_size: int
+    capabilities: List[str]
+    location: Dict[str, float]
+
+class FederatedLearningSystem:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        
+        # Initialize nodes
+        self.nodes: Dict[str, FederatedNode] = {}
+        self.global_model = None
+        self.aggregation_history = []
+        
+        # Initialize encryption
+        self.encryption_key = Fernet.generate_key()
+        self.cipher_suite = Fernet(self.encryption_key)
+        
+        # Initialize blockchain for model versioning
+        self.blockchain_manager = BlockchainManager(config['blockchain'])
+    
+    async def register_node(self, node: FederatedNode):
+        """Register a federated learning node"""
+        
+        self.nodes[node.node_id] = node
+        self.logger.info(f"Registered federated node: {node.node_id}")
+        
+        # Store node info on blockchain
+        await self.blockchain_manager.store_node_info(node)
+    
+    async def start_federated_training(self, model_config: Dict[str, Any]):
+        """Start federated learning training round"""
+        
+        self.logger.info("Starting federated learning training round")
+        
+        # Initialize global model
+        self.global_model = self._create_model(model_config)
+        
+        # Distribute global model to nodes
+        await self._distribute_model()
+        
+        # Start local training on nodes
+        training_tasks = []
+        for node_id in self.nodes.keys():
+            task = asyncio.create_task(self._train_on_node(node_id))
+            training_tasks.append(task)
+        
+        # Wait for all nodes to complete training
+        results = await asyncio.gather(*training_tasks, return_exceptions=True)
+        
+        # Aggregate models
+        aggregated_model = await self._aggregate_models(results)
+        
+        # Update global model
+        self.global_model = aggregated_model
+        
+        # Store model version on blockchain
+        model_hash = self._hash_model(aggregated_model)
+        await self.blockchain_manager.store_model_version(model_hash, len(self.nodes))
+        
+        # Record aggregation
+        self.aggregation_history.append({
+            'timestamp': datetime.now(),
+            'participating_nodes': len(self.nodes),
+            'model_hash': model_hash,
+            'performance_metrics': await self._evaluate_model(aggregated_model)
+        })
+        
+        self.logger.info("Federated learning round completed")
+    
+    async def _distribute_model(self):
+        """Distribute global model to all nodes"""
+        
+        for node_id, node in self.nodes.items():
+            try:
+                # Encrypt model for secure transmission
+                model_bytes = self._model_to_bytes(self.global_model)
+                encrypted_model = self.cipher_suite.encrypt(model_bytes)
+                
+                # Send to node
+                await self._send_model_to_node(node_id, encrypted_model)
+                
+                self.logger.info(f"Distributed model to node: {node_id}")
+                
+            except Exception as e:
+                self.logger.error(f"Failed to distribute model to {node_id}: {str(e)}")
+    
+    async def _train_on_node(self, node_id: str) -> Dict[str, Any]:
+        """Train model on a specific node"""
+        
+        try:
+            # Get local data for node
+            local_data = await self._get_node_data(node_id)
+            
+            if len(local_data) == 0:
+                return {
+                    'node_id': node_id,
+                    'status': 'no_data',
+                    'model_update': None
+                }
+            
+            # Create local model copy
+            local_model = self._create_model_copy(self.global_model)
+            
+            # Train on local data
+            trained_model = await self._train_local_model(local_model, local_data)
+            
+            # Calculate model update (difference from global)
+            model_update = self._calculate_model_update(self.global_model, trained_model)
+            
+            # Encrypt model update
+            encrypted_update = self.cipher_suite.encrypt(self._model_to_bytes(model_update))
+            
+            return {
+                'node_id': node_id,
+                'status': 'success',
+                'model_update': encrypted_update,
+                'data_size': len(local_data),
+                'training_metrics': await self._get_training_metrics(trained_model, local_data)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Training failed on node {node_id}: {str(e)}")
+            return {
+                'node_id': node_id,
+                'status': 'failed',
+                'error': str(e)
+            }
+    
+    async def _aggregate_models(self, results: List[Dict[str, Any]]) -> nn.Module:
+        """Aggregate model updates from all nodes"""
+        
+        valid_updates = []
+        total_data_size = 0
+        
+        for result in results:
+            if result['status'] == 'success' and result['model_update'] is not None:
+                # Decrypt model update
+                decrypted_update = self.cipher_suite.decrypt(result['model_update'])
+                model_update = self._bytes_to_model(decrypted_update)
+                
+                valid_updates.append({
+                    'update': model_update,
+                    'weight': result['data_size']
+                })
+                total_data_size += result['data_size']
+        
+        if not valid_updates:
+            self.logger.warning("No valid model updates received")
+            return self.global_model
+        
+        # Weighted average of model updates
+        aggregated_model = self._create_model_copy(self.global_model)
+        
+        for param in aggregated_model.parameters():
+            param.data.zero_()
+        
+        for update_info in valid_updates:
+            weight = update_info['weight'] / total_data_size
+            
+            for param, update_param in zip(aggregated_model.parameters(), 
+                                         update_info['update'].parameters()):
+                param.data += update_param.data * weight
+        
+        return aggregated_model
+    
+    def _create_model(self, config: Dict[str, Any]) -> nn.Module:
+        """Create neural network model"""
+        
+        model = nn.Sequential(
+            nn.Linear(config['input_size'], 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, config['output_size'])
+        )
+        
+        return model
+    
+    def _create_model_copy(self, model: nn.Module) -> nn.Module:
+        """Create a copy of a model"""
+        
+        model_copy = type(model)()
+        model_copy.load_state_dict(model.state_dict())
+        return model_copy
+    
+    def _calculate_model_update(self, global_model: nn.Module, local_model: nn.Module) -> nn.Module:
+        """Calculate the difference between global and local models"""
+        
+        update_model = self._create_model_copy(global_model)
+        
+        for global_param, local_param, update_param in zip(
+            global_model.parameters(),
+            local_model.parameters(),
+            update_model.parameters()
+        ):
+            update_param.data = local_param.data - global_param.data
+        
+        return update_model
+    
+    async def _train_local_model(self, model: nn.Module, data: List[Dict]) -> nn.Module:
+        """Train model on local data"""
+        
+        # Convert data to tensors
+        X = torch.tensor([d['features'] for d in data], dtype=torch.float32)
+        y = torch.tensor([d['label'] for d in data], dtype=torch.long)
+        
+        # Training setup
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        
+        # Training loop
+        model.train()
+        for epoch in range(10):  # 10 epochs
+            optimizer.zero_grad()
+            outputs = model(X)
+            loss = criterion(outputs, y)
+            loss.backward()
+            optimizer.step()
+        
+        return model
+    
+    async def _get_node_data(self, node_id: str) -> List[Dict]:
+        """Get local data for a node"""
+        
+        # This would retrieve data from the specific node
+        # For now, return mock data
+        return [
+            {
+                'features': np.random.randn(10).tolist(),
+                'label': np.random.randint(0, 3)
+            }
+            for _ in range(100)
+        ]
+    
+    def _model_to_bytes(self, model: nn.Module) -> bytes:
+        """Convert model to bytes"""
+        
+        import io
+        buffer = io.BytesIO()
+        torch.save(model.state_dict(), buffer)
+        return buffer.getvalue()
+    
+    def _bytes_to_model(self, model_bytes: bytes) -> nn.Module:
+        """Convert bytes back to model"""
+        
+        import io
+        buffer = io.BytesIO(model_bytes)
+        state_dict = torch.load(buffer)
+        
+        model = self._create_model({'input_size': 10, 'output_size': 3})
+        model.load_state_dict(state_dict)
+        return model
+    
+    def _hash_model(self, model: nn.Module) -> str:
+        """Create hash of model for blockchain storage"""
+        
+        model_bytes = self._model_to_bytes(model)
+        return hashlib.sha256(model_bytes).hexdigest()
+    
+    async def _evaluate_model(self, model: nn.Module) -> Dict[str, float]:
+        """Evaluate model performance"""
+        
+        # This would evaluate on test data
+        # For now, return mock metrics
+        return {
+            'accuracy': 0.85,
+            'precision': 0.82,
+            'recall': 0.88,
+            'f1_score': 0.85
+        }
+    
+    async def _get_training_metrics(self, model: nn.Module, data: List[Dict]) -> Dict[str, float]:
+        """Get training metrics for a model"""
+        
+        # This would calculate actual training metrics
+        # For now, return mock metrics
+        return {
+            'loss': 0.15,
+            'accuracy': 0.87,
+            'training_time': 2.5
+        }
+    
+    async def _send_model_to_node(self, node_id: str, encrypted_model: bytes):
+        """Send encrypted model to node"""
+        
+        # This would send to the actual node
+        # For now, just log
+        self.logger.info(f"Sent encrypted model to node {node_id}")
+```
+
+### 2. Advanced Smart Contract Integration
+
+```python
+# advanced_smart_contracts.py
+import asyncio
+import logging
+from typing import Dict, List, Optional, Any
+from web3 import Web3
+from eth_account import Account
+import json
+import hashlib
+
+class AdvancedSmartContractManager:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        
+        # Initialize Web3
+        self.w3 = Web3(Web3.HTTPProvider(config["rpc_url"]))
+        self.account = Account.from_key(config["private_key"])
+        
+        # Load advanced contracts
+        self.contracts = {}
+        self._load_advanced_contracts()
+    
+    def _load_advanced_contracts(self):
+        """Load advanced smart contracts"""
+        
+        # Federated Learning Contract
+        with open("contracts/FederatedLearning.json", "r") as f:
+            fl_contract_abi = json.load(f)["abi"]
+        
+        self.contracts["federated_learning"] = {
+            "abi": fl_contract_abi,
+            "address": self.config["fl_contract_address"]
+        }
+        
+        # AI Model Registry Contract
+        with open("contracts/AIModelRegistry.json", "r") as f:
+            model_registry_abi = json.load(f)["abi"]
+        
+        self.contracts["ai_model_registry"] = {
+            "abi": model_registry_abi,
+            "address": self.config["model_registry_address"]
+        }
+        
+        # Data Marketplace Contract
+        with open("contracts/DataMarketplace.json", "r") as f:
+            marketplace_abi = json.load(f)["abi"]
+        
+        self.contracts["data_marketplace"] = {
+            "abi": marketplace_abi,
+            "address": self.config["marketplace_address"]
+        }
+    
+    async def register_federated_node(self, node_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Register a federated learning node on blockchain"""
+        
+        try:
+            contract = self.w3.eth.contract(
+                address=self.contracts["federated_learning"]["address"],
+                abi=self.contracts["federated_learning"]["abi"]
+            )
+            
+            # Create node hash
+            node_hash = self.w3.keccak(
+                text=json.dumps(node_info, sort_keys=True)
+            ).hex()
+            
+            # Build transaction
+            transaction = contract.functions.registerNode(
+                node_info["node_id"],
+                node_hash,
+                node_info["device_type"],
+                node_info["data_size"],
+                node_info["capabilities"]
+            ).build_transaction({
+                'from': self.account.address,
+                'gas': 300000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address)
+            })
+            
+            # Sign and send
+            signed_txn = self.w3.eth.account.sign_transaction(
+                transaction, self.config["private_key"]
+            )
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            
+            # Wait for confirmation
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            
+            return {
+                "status": "success",
+                "transaction_hash": tx_hash.hex(),
+                "node_hash": node_hash,
+                "block_number": receipt.blockNumber
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to register federated node: {str(e)}")
+            return {
+                "status": "failed",
+                "error": str(e)
+            }
+    
+    async def store_model_version(self, model_hash: str, participating_nodes: int) -> Dict[str, Any]:
+        """Store AI model version on blockchain"""
+        
+        try:
+            contract = self.w3.eth.contract(
+                address=self.contracts["ai_model_registry"]["address"],
+                abi=self.contracts["ai_model_registry"]["abi"]
+            )
+            
+            # Build transaction
+            transaction = contract.functions.registerModelVersion(
+                model_hash,
+                participating_nodes,
+                int(asyncio.get_event_loop().time())
+            ).build_transaction({
+                'from': self.account.address,
+                'gas': 200000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address)
+            })
+            
+            # Sign and send
+            signed_txn = self.w3.eth.account.sign_transaction(
+                transaction, self.config["private_key"]
+            )
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            
+            # Wait for confirmation
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            
+            return {
+                "status": "success",
+                "transaction_hash": tx_hash.hex(),
+                "model_hash": model_hash,
+                "block_number": receipt.blockNumber
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to store model version: {str(e)}")
+            return {
+                "status": "failed",
+                "error": str(e)
+            }
+    
+    async def create_data_marketplace_listing(self, data_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a data marketplace listing"""
+        
+        try:
+            contract = self.w3.eth.contract(
+                address=self.contracts["data_marketplace"]["address"],
+                abi=self.contracts["data_marketplace"]["abi"]
+            )
+            
+            # Create data hash
+            data_hash = self.w3.keccak(
+                text=json.dumps(data_info, sort_keys=True)
+            ).hex()
+            
+            # Build transaction
+            transaction = contract.functions.createListing(
+                data_info["owner"],
+                data_hash,
+                data_info["data_type"],
+                data_info["price_wei"],
+                data_info["description"]
+            ).build_transaction({
+                'from': self.account.address,
+                'gas': 250000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address)
+            })
+            
+            # Sign and send
+            signed_txn = self.w3.eth.account.sign_transaction(
+                transaction, self.config["private_key"]
+            )
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            
+            # Wait for confirmation
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            
+            return {
+                "status": "success",
+                "transaction_hash": tx_hash.hex(),
+                "data_hash": data_hash,
+                "listing_id": await self._get_listing_id(contract, data_hash)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create data listing: {str(e)}")
+            return {
+                "status": "failed",
+                "error": str(e)
+            }
+    
+    async def _get_listing_id(self, contract, data_hash: str) -> int:
+        """Get listing ID for data hash"""
+        
+        try:
+            listing_id = contract.functions.getListingId(data_hash).call()
+            return listing_id
+        except Exception:
+            return 0
+    
+    async def execute_ai_decision_contract(self, decision_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute AI-powered decision smart contract"""
+        
+        try:
+            # This would execute a smart contract that makes decisions based on AI analysis
+            contract = self.w3.eth.contract(
+                address=self.config["ai_decision_address"],
+                abi=self.config["ai_decision_abi"]
+            )
+            
+            # Build transaction with AI decision
+            transaction = contract.functions.executeDecision(
+                decision_data["device_id"],
+                decision_data["ai_prediction"],
+                decision_data["confidence"],
+                decision_data["action"]
+            ).build_transaction({
+                'from': self.account.address,
+                'gas': 300000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address)
+            })
+            
+            # Sign and send
+            signed_txn = self.w3.eth.account.sign_transaction(
+                transaction, self.config["private_key"]
+            )
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            
+            # Wait for confirmation
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            
+            return {
+                "status": "success",
+                "transaction_hash": tx_hash.hex(),
+                "decision_executed": True,
+                "block_number": receipt.blockNumber
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute AI decision: {str(e)}")
+            return {
+                "status": "failed",
+                "error": str(e)
+            }
+```
+
+### 3. Advanced Web3 dApp Features
+
+```typescript
+// advanced_web3_features.ts
+import { ethers } from 'ethers';
+import { Web3Provider } from '@ethersproject/providers';
+import { IPFS } from 'ipfs-http-client';
+
+interface AdvancedWeb3Config {
+  ethereumRpcUrl: string;
+  ipfsGateway: string;
+  contractAddresses: {
+    federatedLearning: string;
+    modelRegistry: string;
+    dataMarketplace: string;
+  };
+}
+
+class AdvancedWeb3Manager {
+  private provider: Web3Provider;
+  private ipfs: IPFS;
+  private contracts: Map<string, ethers.Contract>;
+  private config: AdvancedWeb3Config;
+
+  constructor(config: AdvancedWeb3Config) {
+    this.config = config;
+    this.contracts = new Map();
+    this.initializeProvider();
+    this.initializeIPFS();
+  }
+
+  private async initializeProvider() {
+    if (typeof window.ethereum !== 'undefined') {
+      this.provider = new ethers.providers.Web3Provider(window.ethereum);
+      await this.provider.send("eth_requestAccounts", []);
+    } else {
+      throw new Error('MetaMask not found');
+    }
+  }
+
+  private async initializeIPFS() {
+    this.ipfs = IPFS.create({ url: this.config.ipfsGateway });
+  }
+
+  async deployFederatedModel(modelData: any, metadata: any) {
+    try {
+      // Store model on IPFS
+      const modelCid = await this.ipfs.add(JSON.stringify(modelData));
+      
+      // Store metadata on IPFS
+      const metadataCid = await this.ipfs.add(JSON.stringify(metadata));
+      
+      // Deploy to blockchain
+      const contract = this.getContract('federatedLearning');
+      const signer = this.provider.getSigner();
+      
+      const transaction = await contract.connect(signer).deployModel(
+        modelCid.toString(),
+        metadataCid.toString(),
+        metadata.participatingNodes,
+        metadata.performanceMetrics
+      );
+      
+      const receipt = await transaction.wait();
+      
+      return {
+        status: 'success',
+        modelCid: modelCid.toString(),
+        metadataCid: metadataCid.toString(),
+        transactionHash: receipt.transactionHash,
+        blockNumber: receipt.blockNumber
+      };
+    } catch (error) {
+      console.error('Failed to deploy federated model:', error);
+      return { status: 'failed', error: error.message };
+    }
+  }
+
+  async createDataMarketplaceListing(dataInfo: any) {
+    try {
+      // Store data on IPFS
+      const dataCid = await this.ipfs.add(JSON.stringify(dataInfo.data));
+      
+      // Create marketplace listing
+      const contract = this.getContract('dataMarketplace');
+      const signer = this.provider.getSigner();
+      
+      const transaction = await contract.connect(signer).createListing(
+        dataInfo.owner,
+        dataCid.toString(),
+        dataInfo.dataType,
+        ethers.utils.parseEther(dataInfo.price.toString()),
+        dataInfo.description
+      );
+      
+      const receipt = await transaction.wait();
+      
+      return {
+        status: 'success',
+        dataCid: dataCid.toString(),
+        transactionHash: receipt.transactionHash,
+        listingId: await this.getListingId(dataCid.toString())
+      };
+    } catch (error) {
+      console.error('Failed to create data listing:', error);
+      return { status: 'failed', error: error.message };
+    }
+  }
+
+  async executeAIDecision(decisionData: any) {
+    try {
+      const contract = this.getContract('aiDecision');
+      const signer = this.provider.getSigner();
+      
+      const transaction = await contract.connect(signer).executeDecision(
+        decisionData.deviceId,
+        decisionData.prediction,
+        decisionData.confidence,
+        decisionData.action
+      );
+      
+      const receipt = await transaction.wait();
+      
+      return {
+        status: 'success',
+        transactionHash: receipt.transactionHash,
+        decisionExecuted: true
+      };
+    } catch (error) {
+      console.error('Failed to execute AI decision:', error);
+      return { status: 'failed', error: error.message };
+    }
+  }
+
+  async getFederatedModelHistory() {
+    try {
+      const contract = this.getContract('modelRegistry');
+      const modelCount = await contract.getModelCount();
+      
+      const models = [];
+      for (let i = 0; i < modelCount; i++) {
+        const model = await contract.getModel(i);
+        models.push({
+          modelHash: model.modelHash,
+          timestamp: model.timestamp.toNumber(),
+          participatingNodes: model.participatingNodes.toNumber(),
+          performanceMetrics: model.performanceMetrics
+        });
+      }
+      
+      return { status: 'success', models };
+    } catch (error) {
+      console.error('Failed to get model history:', error);
+      return { status: 'failed', error: error.message };
+    }
+  }
+
+  async getDataMarketplaceListings() {
+    try {
+      const contract = this.getContract('dataMarketplace');
+      const listingCount = await contract.getListingCount();
+      
+      const listings = [];
+      for (let i = 0; i < listingCount; i++) {
+        const listing = await contract.getListing(i);
+        listings.push({
+          id: listing.id.toNumber(),
+          owner: listing.owner,
+          dataCid: listing.dataCid,
+          dataType: listing.dataType,
+          price: ethers.utils.formatEther(listing.price),
+          description: listing.description,
+          active: listing.active
+        });
+      }
+      
+      return { status: 'success', listings };
+    } catch (error) {
+      console.error('Failed to get marketplace listings:', error);
+      return { status: 'failed', error: error.message };
+    }
+  }
+
+  private getContract(contractName: string): ethers.Contract {
+    if (!this.contracts.has(contractName)) {
+      const address = this.config.contractAddresses[contractName];
+      const abi = this.getContractABI(contractName);
+      this.contracts.set(contractName, new ethers.Contract(address, abi, this.provider));
+    }
+    return this.contracts.get(contractName);
+  }
+
+  private getContractABI(contractName: string): any[] {
+    // This would load the actual ABI from contract artifacts
+    // For now, return mock ABI
+    return [];
+  }
+
+  private async getListingId(dataCid: string): Promise<number> {
+    try {
+      const contract = this.getContract('dataMarketplace');
+      return await contract.getListingId(dataCid);
+    } catch (error) {
+      return 0;
+    }
+  }
+}
+
+// React component for advanced Web3 features
+export const AdvancedWeb3Dashboard: React.FC = () => {
+  const [web3Manager, setWeb3Manager] = useState<AdvancedWeb3Manager | null>(null);
+  const [federatedModels, setFederatedModels] = useState<any[]>([]);
+  const [marketplaceListings, setMarketplaceListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const initializeWeb3 = async () => {
+      try {
+        const config: AdvancedWeb3Config = {
+          ethereumRpcUrl: process.env.REACT_APP_ETHEREUM_RPC_URL!,
+          ipfsGateway: process.env.REACT_APP_IPFS_GATEWAY!,
+          contractAddresses: {
+            federatedLearning: process.env.REACT_APP_FL_CONTRACT_ADDRESS!,
+            modelRegistry: process.env.REACT_APP_MODEL_REGISTRY_ADDRESS!,
+            dataMarketplace: process.env.REACT_APP_MARKETPLACE_ADDRESS!
+          }
+        };
+
+        const manager = new AdvancedWeb3Manager(config);
+        setWeb3Manager(manager);
+
+        // Load initial data
+        await loadFederatedModels(manager);
+        await loadMarketplaceListings(manager);
+
+      } catch (error) {
+        console.error('Failed to initialize Web3:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeWeb3();
+  }, []);
+
+  const loadFederatedModels = async (manager: AdvancedWeb3Manager) => {
+    const result = await manager.getFederatedModelHistory();
+    if (result.status === 'success') {
+      setFederatedModels(result.models);
+    }
+  };
+
+  const loadMarketplaceListings = async (manager: AdvancedWeb3Manager) => {
+    const result = await manager.getDataMarketplaceListings();
+    if (result.status === 'success') {
+      setMarketplaceListings(result.listings);
+    }
+  };
+
+  const deployModel = async () => {
+    if (!web3Manager) return;
+
+    const modelData = {
+      // Mock model data
+      weights: [1, 2, 3, 4, 5],
+      architecture: 'neural_network',
+      version: '1.0.0'
+    };
+
+    const metadata = {
+      participatingNodes: 5,
+      performanceMetrics: {
+        accuracy: 0.85,
+        precision: 0.82,
+        recall: 0.88
+      }
+    };
+
+    const result = await web3Manager.deployFederatedModel(modelData, metadata);
+    if (result.status === 'success') {
+      await loadFederatedModels(web3Manager);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading Advanced Web3 Dashboard...</div>;
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      <Title className="text-3xl font-bold mb-6">
+        Advanced Web3 + AI + IoT Dashboard
+      </Title>
+
+      {/* Federated Learning Models */}
+      <Card className="mb-8">
+        <Title>Federated Learning Models</Title>
+        <div className="flex justify-between items-center mb-4">
+          <Text>{federatedModels.length} models deployed</Text>
+          <Button onClick={deployModel}>Deploy New Model</Button>
+        </div>
+        
+        <div className="space-y-4">
+          {federatedModels.map((model, index) => (
+            <div key={index} className="border p-4 rounded">
+              <div className="flex justify-between">
+                <Text>Model Hash: {model.modelHash.slice(0, 10)}...</Text>
+                <Text>Nodes: {model.participatingNodes}</Text>
+              </div>
+              <Text className="text-sm text-gray-600">
+                Deployed: {new Date(model.timestamp * 1000).toLocaleString()}
+              </Text>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Data Marketplace */}
+      <Card className="mb-8">
+        <Title>Data Marketplace</Title>
+        <div className="space-y-4">
+          {marketplaceListings.map((listing, index) => (
+            <div key={index} className="border p-4 rounded">
+              <div className="flex justify-between">
+                <Text>Data Type: {listing.dataType}</Text>
+                <Text>Price: {listing.price} ETH</Text>
+              </div>
+              <Text className="text-sm text-gray-600">
+                {listing.description}
+              </Text>
+              <Text className="text-xs text-gray-500">
+                Owner: {listing.owner.slice(0, 10)}...
+              </Text>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+```
+
+## 📊 Business Case Studies
+
+### Case Study 1: Decentralized AI Network
+
+**Company**: AI Consortium
+**Challenge**: Build a decentralized AI network with privacy-preserving federated learning
+**Solution**: AI + IoT + Blockchain + Web3 Integration
+
+1. **Initial State**
+   - 50+ organizations with AI models
+   - Data silos preventing collaboration
+   - Privacy concerns limiting sharing
+   - Inconsistent model performance
+   - High computational costs
+
+2. **Implementation**
+   - Federated learning across distributed nodes
+   - Blockchain-based model versioning
+   - IoT devices for edge AI processing
+   - Web3 dApp for model marketplace
+   - Privacy-preserving encryption
+
+3. **Results**
+   - 40% improvement in model accuracy
+   - 70% reduction in computational costs
+   - 100% privacy compliance
+   - 24/7 decentralized operation
+   - 10x increase in model collaboration
+
+4. **Key Learnings**
+   - Federated learning enables collaboration without data sharing
+   - Blockchain provides transparent model versioning
+   - Edge AI reduces latency and bandwidth
+   - Web3 creates new business models
+   - Privacy-first design builds trust
+
+### Case Study 2: Smart City IoT Platform
+
+**Company**: Urban Technology Solutions
+**Challenge**: Build intelligent city infrastructure with decentralized control
+**Solution**: IoT + AI + Blockchain Integration
+
+1. **Initial State**
+   - 1000+ IoT sensors across city
+   - Centralized control system
+   - High latency response times
+   - Security vulnerabilities
+   - Limited scalability
+
+2. **Implementation**
+   - Edge AI processing on IoT devices
+   - Blockchain for secure data storage
+   - Smart contracts for automated decisions
+   - Web3 dApp for citizen interaction
+   - Federated learning for traffic optimization
+
+3. **Results**
+   - 80% reduction in response time
+   - 90% improvement in traffic flow
+   - 100% security compliance
+   - 50% reduction in energy consumption
+   - 24/7 autonomous operation
+
+4. **Key Learnings**
+   - Edge AI enables real-time decision making
+   - Blockchain ensures data integrity
+   - Smart contracts automate complex decisions
+   - Web3 engages citizens in governance
+   - Federated learning optimizes city-wide systems
+
+### Case Study 3: Healthcare Data Marketplace
+
+**Company**: Medical Data Exchange
+**Challenge**: Create secure marketplace for medical AI data
+**Solution**: AI + Blockchain + Web3 + IoT Integration
+
+1. **Initial State**
+   - Fragmented medical data sources
+   - Privacy concerns preventing sharing
+   - Inconsistent data quality
+   - Limited AI model training data
+   - High regulatory compliance costs
+
+2. **Implementation**
+   - Blockchain-based data marketplace
+   - Federated learning for model training
+   - IoT devices for patient monitoring
+   - Web3 dApp for data trading
+   - Privacy-preserving AI algorithms
+
+3. **Results**
+   - 60% increase in available training data
+   - 95% improvement in model accuracy
+   - 100% regulatory compliance
+   - 40% reduction in data acquisition costs
+   - New revenue streams for data providers
+
+4. **Key Learnings**
+   - Blockchain enables secure data trading
+   - Federated learning preserves privacy
+   - IoT provides real-time health data
+   - Web3 creates new business models
+   - Privacy-first design is essential
+
+## 📚 Portfolio Building Guide
+
+### 1. Technical Documentation
+
+Create comprehensive documentation covering:
+- Multi-technology integration architecture
+- Federated learning implementation
+- Blockchain smart contract design
+- Web3 dApp development
+- IoT edge AI processing
+- Privacy and security considerations
+
+### 2. System Architecture Showcase
+
+Highlight key architectural components:
+- Federated learning network design
+- Blockchain integration patterns
+- Web3 dApp architecture
+- IoT edge processing
+- Smart contract automation
+- Privacy-preserving mechanisms
+
+### 3. Code Samples and Demonstrations
+
+Showcase key implementations:
+- Federated learning algorithms
+- Smart contract development
+- Web3 dApp features
+- IoT edge AI processing
+- Blockchain integration
+- Privacy-preserving techniques
+
+### 4. Case Study Presentations
+
+Develop presentations covering:
+- Business requirements and constraints
+- Technical solution architecture
+- Implementation challenges and solutions
+- Results and impact analysis
+- Lessons learned and best practices
+- Future enhancement opportunities
+
+### 5. GitHub Repository
+
+Maintain a professional repository with:
+- Clean, well-documented code structure
+- Comprehensive README and documentation
+- Performance benchmarks and metrics
+- Deployment guides and examples
+- Testing frameworks and examples
+- Monitoring and observability tools
+
+## 🎓 Assessment Criteria
+
+### 1. Technical Integration (40%)
+
+- [ ] Complete multi-technology integration
+- [ ] Federated learning implementation
+- [ ] Blockchain smart contract development
+- [ ] Web3 dApp functionality
+- [ ] IoT edge AI processing
+
+### 2. Innovation & Cutting-edge (30%)
+
+- [ ] Emerging technology integration
+- [ ] Novel architectural patterns
+- [ ] Privacy-preserving techniques
+- [ ] Decentralized AI approaches
+- [ ] Future-ready design
+
+### 3. Performance & Reliability (20%)
+
+- [ ] System performance optimization
+- [ ] Data integrity and security
+- [ ] Scalability and fault tolerance
+- [ ] Privacy compliance
+- [ ] Real-time processing capabilities
+
+### 4. User Experience (10%)
+
+- [ ] Intuitive Web3 interface
+- [ ] Real-time data visualization
+- [ ] Cross-platform compatibility
+- [ ] Accessibility and usability
+- [ ] Comprehensive documentation
+
+## 🔬 Research Integration
+
+### 1. Latest Research Papers
+
+1. "Federated Learning for IoT Systems" (2024)
+   - Privacy-preserving techniques
+   - Edge AI optimization
+   - Distributed training strategies
+
+2. "Blockchain for AI Model Management" (2024)
+   - Decentralized model versioning
+   - Smart contract automation
+   - Trust and transparency
+
+3. "Web3 AI Applications" (2024)
+   - Decentralized AI marketplaces
+   - Tokenized AI services
+   - Community-driven AI development
+
+### 2. Future Trends
+
+1. **Decentralized AI**
+   - Federated learning networks
+   - Privacy-preserving AI
+   - Community-driven model development
+
+2. **Tokenized AI Services**
+   - AI model marketplaces
+   - Data tokenization
+   - Incentivized collaboration
+
+3. **Edge AI Evolution**
+   - Advanced edge processing
+   - Federated edge learning
+   - Autonomous edge decisions
+
+## 🚀 Next Steps
+
+1. **Advanced Features**
+   - Advanced federated learning
+   - Cross-chain AI integration
+   - Advanced privacy techniques
+
+2. **Platform Expansion**
+   - Additional blockchain networks
+   - New IoT device types
+   - Advanced Web3 features
+
+3. **Research Opportunities**
+   - Novel federated learning approaches
+   - Advanced blockchain AI integration
+   - Privacy-preserving AI techniques
+
+4. **Community Building**
+   - Open source contributions
+   - Documentation improvements
+   - Tutorial development
+
+## 📈 Success Metrics
+
+### 1. Technical Metrics
+
+- Federated learning accuracy > 90%
+- Blockchain transaction success > 99%
+- Web3 dApp uptime > 99.9%
+- IoT edge processing latency < 100ms
+- Privacy compliance > 100%
+
+### 2. Innovation Metrics
+
+- 4+ emerging technologies integrated
+- Novel architectural patterns
+- Advanced privacy techniques
+- Future-ready design
+- Research contributions
+
+### 3. Performance Metrics
+
+- 10x throughput increase
+- 50% latency reduction
+- 70% cost efficiency
+- 100x scalability improvement
+- 90%+ user satisfaction
+
+### 4. Business Metrics
+
+- 60% cost reduction
+- 40% revenue increase
+- 80% customer satisfaction
+- 100x capacity increase
+- Positive ROI in 6 months
+
+## 🏆 Certification Requirements
+
+1. **Implementation**
+   - Complete multi-technology integration
+   - Federated learning deployment
+   - Blockchain smart contracts
+   - Web3 dApp development
+   - IoT edge AI processing
+
+2. **Evaluation**
+   - Technical assessment
+   - Performance testing
+   - Security audit
+   - Privacy compliance review
+
+3. **Presentation**
+   - Architecture overview
+   - Implementation details
+   - Results analysis
+   - Future roadmap
+
+4. **Portfolio**
+   - Project documentation
+   - Code samples
+   - Case studies
+   - Performance benchmarks 

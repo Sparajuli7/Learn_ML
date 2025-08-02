@@ -1,5 +1,60 @@
 # AI in Transportation: Traffic Optimization, Autonomous Systems, and Smart Mobility
 
+## Course Information
+
+**Course Code**: TRN-AI-478  
+**Level**: Advanced  
+**Credits**: 4  
+**Prerequisites**: 
+- Introduction to Machine Learning
+- Computer Vision Fundamentals
+- Python Programming
+- Transportation Systems Engineering
+
+## Course Overview
+
+This advanced course explores the intersection of artificial intelligence and transportation systems, providing comprehensive coverage of traffic optimization, autonomous vehicles, and smart mobility solutions. The course combines rigorous mathematical foundations with practical implementations, preparing students for both academic research and industry applications in the transportation sector.
+
+## Learning Objectives
+
+Upon completion of this course, students will be able to:
+
+1. **Theoretical Understanding**
+   - Master traffic flow optimization algorithms
+   - Understand autonomous vehicle control systems
+   - Apply machine learning to transportation
+   - Develop smart city integration models
+
+2. **Technical Competence**
+   - Implement traffic prediction systems
+   - Design autonomous navigation solutions
+   - Deploy fleet management platforms
+   - Create route optimization algorithms
+
+3. **Safety and Efficiency**
+   - Evaluate transportation safety metrics
+   - Design efficient routing systems
+   - Optimize resource utilization
+   - Monitor system performance
+
+4. **Research and Innovation**
+   - Conduct transportation research
+   - Analyze traffic pattern data
+   - Develop novel mobility solutions
+   - Contribute to smart city development
+
+## Module Structure
+
+Each section includes:
+- Theoretical foundations and proofs
+- Implementation examples
+- Case studies
+- Performance metrics
+- Interactive exercises
+- Assessment questions
+- Laboratory experiments
+- Portfolio projects
+
 ## Table of Contents
 1. [Introduction and Transportation Landscape](#introduction-and-transportation-landscape)
 2. [Theoretical Foundations](#theoretical-foundations)
@@ -1148,4 +1203,77 @@ class DynamicNavigationSystem:
             return "Turn slightly left"
 ```
 
-This comprehensive AI in Transportation content provides the foundation for understanding and implementing intelligent transportation systems, from theoretical concepts to practical applications and career development opportunities. 
+## Assessment and Certification
+
+### Module Quizzes
+
+1. **Theoretical Foundations**
+   - Derive traffic flow equations
+   - Analyze routing optimization algorithms
+   - Solve vehicle control problems
+
+2. **Traffic Management**
+   - Implement traffic prediction systems
+   - Design signal control algorithms
+   - Evaluate system performance metrics
+
+3. **Autonomous Systems**
+   - Develop navigation algorithms
+   - Create perception systems
+   - Optimize control strategies
+
+4. **Smart Cities**
+   - Design integration frameworks
+   - Implement data fusion systems
+   - Analyze urban mobility patterns
+
+### Projects and Assignments
+
+1. **Traffic Management System**
+   - Build a complete traffic control system
+   - Implement real-time monitoring
+   - Deploy on simulation platform
+   - Documentation requirements provided
+
+2. **Autonomous Navigation Platform**
+   - Develop perception and control systems
+   - Create safety protocols
+   - Implement path planning
+   - Handle real-world scenarios
+
+3. **Smart City Integration**
+   - Design data integration systems
+   - Implement mobility services
+   - Create monitoring dashboards
+   - Test in simulated environment
+
+### Certification Preparation
+
+1. **Transportation Systems Professional**
+   - Core competencies covered
+   - Industry standards alignment
+   - Practical experience requirements
+   - Certification pathways
+
+2. **Autonomous Systems Specialist**
+   - Technical requirements
+   - Safety certification preparation
+   - Project portfolio requirements
+   - Assessment criteria
+
+## References
+
+1. Papageorgiou, M. (2023). Traffic Flow Modeling and Control. Springer.
+2. Levinson, D., & Krizek, K. (2024). Metropolitan Transport and Land Use. MIT Press.
+3. SAE International. (2024). Autonomous Vehicle Standards.
+4. Transportation Research Board. (2024). Smart Mobility Guidelines.
+5. IEEE ITS. (2024). Intelligent Transportation Systems Standards.
+
+## Additional Resources
+
+1. Online Supplementary Materials
+2. Interactive Jupyter Notebooks
+3. Traffic Simulation Tools
+4. Autonomous Vehicle Simulators
+5. Real-world Datasets
+6. Assessment Solutions 
