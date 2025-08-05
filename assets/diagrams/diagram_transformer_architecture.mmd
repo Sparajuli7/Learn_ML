@@ -1,0 +1,32 @@
+graph TD
+    subgraph Input
+        A[Input Embedding] --> B[Positional Encoding]
+    end
+    
+    subgraph Encoder
+        B --> C[Self-Attention]
+        C --> D[Add & Normalize]
+        D --> E[Feed Forward]
+        E --> F[Add & Normalize]
+    end
+    
+    subgraph Decoder
+        G[Output Embedding] --> H[Positional Encoding]
+        H --> I[Masked Self-Attention]
+        I --> J[Add & Normalize]
+        J --> K[Cross-Attention]
+        K --> L[Add & Normalize]
+        L --> M[Feed Forward]
+        M --> N[Add & Normalize]
+    end
+    
+    F --> K
+    N --> O[Linear]
+    O --> P[Softmax]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#f9f,stroke:#333,stroke-width:2px
+    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style I fill:#bbf,stroke:#333,stroke-width:2px
+    style K fill:#bfb,stroke:#333,stroke-width:2px
+    style P fill:#fbb,stroke:#333,stroke-width:2px
